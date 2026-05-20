@@ -10,15 +10,40 @@
             background-color: #f4f7f6;
             color: #333;
             padding: 20px;
-            max-width: 800px;
+            max-width: 950px;
             margin: 0 auto;
         }
         h1 {
             color: #2c3e50;
             border-bottom: 2px solid #34495e;
             padding-bottom: 10px;
+            margin-bottom: 5px;
         }
-        .setup-box {
+        p { margin-top: 5px; color: #555; }
+        
+        /* Layout split: Controls left, Visuals right */
+        .container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+        .left-panel {
+            flex: 1;
+            min-width: 350px;
+        }
+        .right-panel {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 280px;
+        }
+        
+        .setup-box, .results-box {
             background-color: #fff;
             padding: 20px;
             border-radius: 8px;
@@ -48,16 +73,9 @@
             cursor: pointer;
             transition: background 0.2s;
         }
-        button:hover {
-            background-color: #219653;
-        }
-        .results-box {
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            display: none;
-        }
+        button:hover { background-color: #219653; }
+        button:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+        
         table {
             width: 100%;
             border-collapse: collapse;
@@ -65,15 +83,14 @@
         }
         th, td {
             border: 1px solid #ddd;
-            padding: 12px;
+            padding: 10px;
             text-align: center;
         }
-        th {
-            background-color: #ecf0f1;
-        }
+        th { background-color: #ecf0f1; }
+        
         .status {
             font-weight: bold;
-            font-size: 18px;
+            font-size: 16px;
             margin-top: 15px;
             padding: 10px;
             border-radius: 4px;
@@ -81,122 +98,153 @@
         }
         .success { background-color: #d4edda; color: #155724; }
         .fail { background-color: #f8d7da; color: #721c24; }
+        
+        /* Canvas Styling */
+        canvas {
+            border: 2px solid #34495e;
+            background-color: #eef2f3;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
 
     <h1>LS Investigation — For the Birds Simulator</h1>
-    <p>Use this simulator to test your engineered solutions and collect data for your Student Answer Packet.</p>
+    <p>Test engineered solutions, observe the drop animation, and record data in your Student Answer Packet.</p>
 
-    <div class="setup-box">
-        <h3>[Designing Solutions Setup]</h3>
-        
-        <label for="birdSelect">Select a Bird Species (Table 1):</label>
-        <select id="birdSelect" onchange="updateControlInfo()">
-            <option value="chickadee">Black-capped Chickadee (Mass: 12g, Drop Height: 1.0m)</option>
-            <option value="cardinal">Northern Cardinal (Mass: 45g, Drop Height: 1.2m)</option>
-            <option value="robin">American Robin (Mass: 75g, Drop Height: 1.5m)</option>
-        </select>
+    <div class="container">
+        <div class="left-panel">
+            <div class="setup-box">
+                <h3>[Designing Solutions Setup]</h3>
+                
+                <label for="birdSelect">Select a Bird Species (Table 1):</label>
+                <select id="birdSelect" onchange="onSettingsChange()">
+                    <option value="chickadee">Black-capped Chickadee (Mass: 12g, Drop Height: 1.0m)</option>
+                    <option value="cardinal">Northern Cardinal (Mass: 45g, Drop Height: 1.2m)</option>
+                    <option value="robin">American Robin (Mass: 75g, Drop Height: 1.5m)</option>
+                </select>
 
-        <div id="controlInfo" style="margin-top:10px; color:#555; font-style:italic;">
-            Baseline Control Deformation (No Mesh): 2.5 cm
+                <div id="controlInfo" style="margin-top:8px; color:#555; font-style:italic; font-size: 14px;">
+                    Baseline Control Deformation (No Mesh): 2.5 cm
+                </div>
+
+                <label for="meshHeight">Independent Variable - Height of mesh from floor (cm):</label>
+                <input type="number" id="meshHeight" min="0" max="25" step="0.5" value="0" oninput="onSettingsChange()">
+
+                <button id="runBtn" onclick="startSimulationPipeline()">Run 3 Trials</button>
+            </div>
+
+            <div id="results" class="results-box" style="display: none;">
+                <h3>Simulation Data Collected</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Trial 1</th>
+                            <th>Trial 2</th>
+                            <th>Trial 3</th>
+                            <th>Average Deformation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td id="t1">-</td>
+                            <td id="t2">-</td>
+                            <td id="t3">-</td>
+                            <td id="tAvg" style="font-weight:bold;">-</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div id="statusMessage" class="status"></div>
+            </div>
         </div>
 
-        <label for="meshHeight">Independent Variable - Height of mesh from floor (cm):</label>
-        <input type="number" id="meshHeight" min="0" step="0.5" placeholder="e.g., 5.0">
-
-        <button onclick="runSimulation()">Run 3 Trials</button>
-    </div>
-
-    <div id="results" class="results-box">
-        <h3>Simulation Results</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>Trial 1</th>
-                    <th>Trial 2</th>
-                    <th>Trial 3</th>
-                    <th>Average Deformation</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td id="t1">-</td>
-                    <td id="t2">-</td>
-                    <td id="t3">-</td>
-                    <td id="tAvg" style="font-weight:bold;">-</td>
-                </tr>
-            </tbody>
-        </table>
-        <div id="statusMessage" class="status"></div>
+        <div class="right-panel">
+            <h3 style="margin-top: 0; margin-bottom: 10px;">Drop Zone Visualizer</h3>
+            <canvas id="simCanvas" width="260" height="420"></canvas>
+            <div style="margin-top: 10px; font-size: 13px; color: #666; text-align: center;">
+                Scale: 10px = 1cm mesh height clearance
+            </div>
+        </div>
     </div>
 
     <script>
+        const canvas = document.getElementById("simCanvas");
+        const ctx = canvas.getContext("2d");
+
         const BIRD_DATA = {
-            chickadee: { minMesh: 6.0, maxDef: 2.5 },
-            cardinal: { minMesh: 10.0, maxDef: 4.2 },
-            robin: { minMesh: 15.0, maxDef: 5.8 }
+            chickadee: { minMesh: 6.0, maxDef: 2.5, color: "#e67e22", radius: 8 },
+            cardinal: { minMesh: 10.0, maxDef: 4.2, color: "#e74c3c", radius: 12 },
+            robin: { minMesh: 15.0, maxDef: 5.8, color: "#3498db", radius: 15 }
         };
 
-        function updateControlInfo() {
-            const bird = document.getElementById("birdSelect").value;
-            document.getElementById("controlInfo").innerText = `Baseline Control Deformation (No Mesh): ${BIRD_DATA[bird].maxDef} cm`;
-        }
+        // Canvas coordinate constants
+        const FLOOR_Y = 380;
+        const CEILING_Y = 50;
+        const SCALE = 10; // 10 pixels per cm of mesh height
 
-        function calculateDeformation(meshHeight, bird) {
-            let minNeeded = bird.minMesh;
-            let maxDef = bird.maxDef;
+        // Animation state variables
+        let animationId = null;
+        let birdY = CEILING_Y;
+        let birdVelocity = 0;
+        let currentTrialIndex = 0;
+        let simulatedTrials = [];
+        let isAnimating = false;
+        let currentMeshStretch = 0;
 
-            if (meshHeight >= minNeeded) {
-                return 0.0;
-            } else {
-                let fractionOfImpact = 1.0 - (meshHeight / minNeeded);
-                let baseDef = maxDef * fractionOfImpact;
-                
-                // Introduce slight simulation variance (+/- 0.1 or 0.2)
-                let variances = [-0.2, -0.1, 0.0, 0.1, 0.2];
-                let randomVariance = variances[Math.floor(Math.random() * variances.length)];
-                let finalDef = baseDef + randomVariance;
-                
-                return Math.max(0, Math.round(finalDef * 10) / 10);
-            }
-        }
+        // Run initial canvas draw
+        onSettingsChange();
 
-        function runSimulation() {
-            const birdKey = document.getElementById("birdSelect").value;
-            const meshHeight = parseFloat(document.getElementById("meshHeight").value);
-
-            if (isNaN(meshHeight) || meshHeight < 0) {
-                alert("Please enter a valid height (0 or greater).");
-                return;
-            }
-
-            const bird = BIRD_DATA[birdKey];
+        function onSettingsChange() {
+            if (isAnimating) return;
             
-            // Generate 3 trials
-            let t1 = calculateDeformation(meshHeight, bird);
-            let t2 = calculateDeformation(meshHeight, bird);
-            let t3 = calculateDeformation(meshHeight, bird);
-            let avg = Math.round(((t1 + t2 + t3) / 3) * 10) / 10;
+            const birdKey = document.getElementById("birdSelect").value;
+            const bird = BIRD_DATA[birdKey];
+            document.getElementById("controlInfo").innerText = `Baseline Control Deformation (No Mesh): ${bird.maxDef} cm`;
+            
+            let meshHeight = parseFloat(document.getElementById("meshHeight").value);
+            if (isNaN(meshHeight) || meshHeight < 0) meshHeight = 0;
 
-            // Display in Table
-            document.getElementById("t1").innerText = t1 + " cm";
-            document.getElementById("t2").innerText = t2 + " cm";
-            document.getElementById("t3").innerText = t3 + " cm";
-            document.getElementById("tAvg").innerText = avg + " cm";
+            drawCanvas(meshHeight, bird, CEILING_Y, 0);
+        }
 
-            // Update Safety Status Message
-            const statusDiv = document.getElementById("statusMessage");
-            if (avg === 0) {
-                statusDiv.innerText = "SUCCESS: Bird survived! No mortality detected.";
-                statusDiv.className = "status success";
-            } else {
-                statusDiv.innerText = "CAUTION: Bird mortality occurred due to floor impact.";
-                statusDiv.className = "status fail";
+        function drawCanvas(meshHeight, bird, currentBirdY, currentStretch) {
+            // Clear space
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Foam/Clay Floor
+            ctx.fillStyle = "#bdc3c7";
+            ctx.fillRect(0, FLOOR_Y, canvas.width, canvas.height - FLOOR_Y);
+            ctx.fillStyle = "#7f8c8d";
+            ctx.fillRect(0, FLOOR_Y, canvas.width, 4); // floor top line
+
+            // Calculate mesh Y position
+            let meshBaseY = FLOOR_Y - (meshHeight * SCALE);
+
+            // Draw Safety Mesh Netting
+            if (meshHeight > 0) {
+                ctx.strokeStyle = "#2c3e50";
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                // If stretching from bird impact, draw a dynamic V shape downward
+                ctx.moveTo(10, meshBaseY);
+                ctx.lineTo(canvas.width / 2, meshBaseY + currentStretch);
+                ctx.lineTo(canvas.width - 10, meshBaseY);
+                ctx.stroke();
+                
+                // Labels for mesh
+                ctx.fillStyle = "#2c3e50";
+                ctx.font = "12px Arial";
+                ctx.fillText(`Mesh Netting (${meshHeight} cm)`, 15, meshBaseY - 8);
             }
 
-            document.getElementById("results").style.display = "block";
-        }
-    </script>
-</body>
-</html>
+            // Draw Bird Object
+            ctx.fillStyle = bird.color;
+            ctx.beginPath();
+            ctx.arc(canvas.width / 2, currentBirdY, bird.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "#2c3e50";
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Lab Floor label
+            ctx.fillStyle =

@@ -21,7 +21,6 @@
         }
         p { margin-top: 5px; color: #555; }
         
-        /* Layout split: Controls left, Visuals right */
         .container {
             display: flex;
             gap: 20px;
@@ -30,7 +29,7 @@
         }
         .left-panel {
             flex: 1;
-            min-width: 350px;
+            min-width: 380px;
         }
         .right-panel {
             background-color: #fff;
@@ -40,7 +39,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            min-width: 280px;
+            min-width: 320px;
         }
         
         .setup-box, .results-box {
@@ -99,7 +98,6 @@
         .success { background-color: #d4edda; color: #155724; }
         .fail { background-color: #f8d7da; color: #721c24; }
         
-        /* Canvas Styling */
         canvas {
             border: 2px solid #34495e;
             background-color: #eef2f3;
@@ -160,9 +158,9 @@
 
         <div class="right-panel">
             <h3 style="margin-top: 0; margin-bottom: 10px;">Drop Zone Visualizer</h3>
-            <canvas id="simCanvas" width="260" height="420"></canvas>
+            <canvas id="simCanvas" width="340" height="440"></canvas>
             <div style="margin-top: 10px; font-size: 13px; color: #666; text-align: center;">
-                Scale: 10px = 1cm mesh height clearance
+                Use the Measuring Tape (left) to verify mesh height clearance window.
             </div>
         </div>
     </div>
@@ -172,17 +170,17 @@
         const ctx = canvas.getContext("2d");
 
         const BIRD_DATA = {
-            chickadee: { minMesh: 6.0, maxDef: 2.5, color: "#e67e22", radius: 8 },
-            cardinal: { minMesh: 10.0, maxDef: 4.2, color: "#e74c3c", radius: 12 },
-            robin: { minMesh: 15.0, maxDef: 5.8, color: "#3498db", radius: 15 }
+            chickadee: { minMesh: 6.0, maxDef: 2.5, color: "#e67e22", radius: 9 },
+            cardinal: { minMesh: 10.0, maxDef: 4.2, color: "#e74c3c", radius: 13 },
+            robin: { minMesh: 15.0, maxDef: 5.8, color: "#3498db", radius: 16 }
         };
 
-        // Canvas coordinate constants
-        const FLOOR_Y = 380;
-        const CEILING_Y = 50;
-        const SCALE = 10; // 10 pixels per cm of mesh height
+        // Canvas Layout Coordinates
+        const FLOOR_Y = 390;
+        const CEILING_Y = 40;
+        const SCALE = 13; // 13 pixels = 1 cm of vertical mesh clearance height
+        const RULER_X = 45; // X position alignment for measuring tape
 
-        // Animation state variables
         let animationId = null;
         let birdY = CEILING_Y;
         let birdVelocity = 0;
@@ -191,7 +189,7 @@
         let isAnimating = false;
         let currentMeshStretch = 0;
 
-        // Run initial canvas draw
+        // Render structural environment on initial load
         onSettingsChange();
 
         function onSettingsChange() {
@@ -203,48 +201,251 @@
             
             let meshHeight = parseFloat(document.getElementById("meshHeight").value);
             if (isNaN(meshHeight) || meshHeight < 0) meshHeight = 0;
+            if (meshHeight > 25) meshHeight = 25;
 
             drawCanvas(meshHeight, bird, CEILING_Y, 0);
         }
 
         function drawCanvas(meshHeight, bird, currentBirdY, currentStretch) {
-            // Clear space
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Draw Foam/Clay Floor
-            ctx.fillStyle = "#bdc3c7";
+            // 1. DRAW WINDOW IMPACT FLOOR (The structural impact plate)
+            ctx.fillStyle = "#a6b8c7";
             ctx.fillRect(0, FLOOR_Y, canvas.width, canvas.height - FLOOR_Y);
-            ctx.fillStyle = "#7f8c8d";
-            ctx.fillRect(0, FLOOR_Y, canvas.width, 4); // floor top line
+            ctx.fillStyle = "#2c3e50";
+            ctx.fillRect(0, FLOOR_Y, canvas.width, 5); // Glass surface line
 
-            // Calculate mesh Y position
-            let meshBaseY = FLOOR_Y - (meshHeight * SCALE);
-
-            // Draw Safety Mesh Netting
-            if (meshHeight > 0) {
-                ctx.strokeStyle = "#2c3e50";
-                ctx.lineWidth = 3;
-                ctx.beginPath();
-                // If stretching from bird impact, draw a dynamic V shape downward
-                ctx.moveTo(10, meshBaseY);
-                ctx.lineTo(canvas.width / 2, meshBaseY + currentStretch);
-                ctx.lineTo(canvas.width - 10, meshBaseY);
-                ctx.stroke();
-                
-                // Labels for mesh
-                ctx.fillStyle = "#2c3e50";
-                ctx.font = "12px Arial";
-                ctx.fillText(`Mesh Netting (${meshHeight} cm)`, 15, meshBaseY - 8);
-            }
-
-            // Draw Bird Object
-            ctx.fillStyle = bird.color;
+            // Glass accent stripes
+            ctx.strokeStyle = "rgba(255,255,255,0.6)";
+            ctx.lineWidth = 3;
             ctx.beginPath();
-            ctx.arc(canvas.width / 2, currentBirdY, bird.radius, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.strokeStyle = "#2c3e50";
-            ctx.lineWidth = 1;
+            ctx.moveTo(100, FLOOR_Y + 15); ctx.lineTo(130, FLOOR_Y + 35);
+            ctx.moveTo(220, FLOOR_Y + 15); ctx.lineTo(250, FLOOR_Y + 35);
             ctx.stroke();
 
-            // Lab Floor label
-            ctx.fillStyle =
+            // 2. DRAW VERTICAL MEASURING TAPE (Ruler on left margin)
+            ctx.strokeStyle = "#7f8c8d";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(RULER_X, CEILING_Y);
+            ctx.lineTo(RULER_X, FLOOR_Y);
+            ctx.stroke();
+
+            for (let cm = 0; cm <= 25; cm++) {
+                let yTick = FLOOR_Y - (cm * SCALE);
+                if (yTick < CEILING_Y - 5) break;
+
+                ctx.beginPath();
+                if (cm % 5 === 0) {
+                    // Major Ticks (5cm intervals)
+                    ctx.moveTo(RULER_X - 18, yTick);
+                    ctx.lineTo(RULER_X, yTick);
+                    ctx.strokeStyle = "#2c3e50";
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    
+                    ctx.fillStyle = "#2c3e50";
+                    ctx.font = "bold 11px Arial";
+                    ctx.fillText(cm + " cm", RULER_X - 42, yTick + 4);
+                } else {
+                    // Minor Ticks (1cm intervals)
+                    ctx.moveTo(RULER_X - 8, yTick);
+                    ctx.lineTo(RULER_X, yTick);
+                    ctx.strokeStyle = "#95a5a6";
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                }
+            }
+
+            // 3. DRAW SAFETY MESH WINDOW PROTECTION
+            let meshBaseY = FLOOR_Y - (meshHeight * SCALE);
+            if (meshHeight > 0) {
+                let midX = (canvas.width + RULER_X) / 2;
+                let currentMidY = meshBaseY + currentStretch;
+
+                ctx.strokeStyle = "#d35400";
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(RULER_X + 10, meshBaseY);
+                ctx.lineTo(midX, currentMidY);
+                ctx.lineTo(canvas.width - 15, meshBaseY);
+                ctx.stroke();
+
+                // Generate Net Weave Crosshatch Look
+                ctx.strokeStyle = "rgba(211, 84, 0, 0.4)";
+                ctx.lineWidth = 1;
+                for (let offset = -20; offset <= 20; offset += 8) {
+                    ctx.beginPath();
+                    ctx.moveTo(RULER_X + 10, meshBaseY + offset);
+                    ctx.lineTo(midX, currentMidY + offset);
+                    ctx.lineTo(canvas.width - 15, meshBaseY + offset);
+                    ctx.stroke();
+                }
+                
+                ctx.fillStyle = "#d35400";
+                ctx.font = "bold 11px Arial";
+                ctx.fillText(`Mesh Netting Setup`, canvas.width - 120, meshBaseY - 8);
+            }
+
+            // 4. DRAW BIRD OBJECT (Ball representing the organism)
+            let birdX = (canvas.width + RULER_X) / 2;
+            ctx.fillStyle = bird.color;
+            ctx.beginPath();
+            ctx.arc(birdX, currentBirdY, bird.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "#2c3e50";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Minimalist bird face features to identify direction
+            ctx.fillStyle = "#fff";
+            ctx.beginPath();
+            ctx.arc(birdX + (bird.radius * 0.3), currentBirdY - (bird.radius * 0.2), bird.radius * 0.2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "#000";
+            ctx.beginPath();
+            ctx.arc(birdX + (bird.radius * 0.3), currentBirdY - (bird.radius * 0.2), bird.radius * 0.08, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Label Floor Area
+            ctx.fillStyle = "#2c3e50";
+            ctx.font = "bold 12px Arial";
+            ctx.fillText("WINDOW / FLOOR SURFACE", RULER_X + 40, FLOOR_Y + 25);
+        }
+
+        function calculateDeformationData(meshHeight, bird) {
+            let minNeeded = bird.minMesh;
+            let maxDef = bird.maxDef;
+
+            if (meshHeight >= minNeeded) {
+                return 0.0;
+            } else {
+                let fractionOfImpact = 1.0 - (meshHeight / minNeeded);
+                let baseDef = maxDef * fractionOfImpact;
+                let variances = [-0.2, -0.1, 0.0, 0.1, 0.2];
+                let randomVariance = variances[Math.floor(Math.random() * variances.length)];
+                return Math.max(0, Math.round((baseDef + randomVariance) * 10) / 10);
+            }
+        }
+
+        function startSimulationPipeline() {
+            let meshHeight = parseFloat(document.getElementById("meshHeight").value);
+            if (isNaN(meshHeight) || meshHeight < 0) {
+                alert("Please enter a valid height (0 or greater).");
+                return;
+            }
+            if (meshHeight > 25) meshHeight = 25;
+
+            const birdKey = document.getElementById("birdSelect").value;
+            const bird = BIRD_DATA[birdKey];
+
+            isAnimating = true;
+            document.getElementById("runBtn").disabled = true;
+            document.getElementById("birdSelect").disabled = true;
+            document.getElementById("meshHeight").disabled = true;
+            document.getElementById("results").style.display = "none";
+
+            simulatedTrials = [
+                calculateDeformationData(meshHeight, bird),
+                calculateDeformationData(meshHeight, bird),
+                calculateDeformationData(meshHeight, bird)
+            ];
+            
+            currentTrialIndex = 0;
+            executeSingleDropAnimation(meshHeight, bird);
+        }
+
+        function executeSingleDropAnimation(meshHeight, bird) {
+            birdY = CEILING_Y;
+            birdVelocity = 1; 
+            currentMeshStretch = 0;
+            let hasHitMesh = false;
+            let expectedDeformation = simulatedTrials[currentTrialIndex];
+
+            function animate() {
+                let meshBaseY = FLOOR_Y - (meshHeight * SCALE);
+
+                if (!hasHitMesh) {
+                    birdY += birdVelocity;
+                    birdVelocity += 0.5; // Acceleration constant
+
+                    if (meshHeight > 0 && birdY >= meshBaseY) {
+                        hasHitMesh = true;
+                    } else if (birdY >= FLOOR_Y - bird.radius) {
+                        birdY = FLOOR_Y - bird.radius;
+                        endTrial();
+                        return;
+                    }
+                } else {
+                    birdY += birdVelocity;
+                    currentMeshStretch = birdY - meshBaseY;
+
+                    if (expectedDeformation === 0) {
+                        birdVelocity *= 0.65; // Net dampens impact velocity completely
+                        if (birdVelocity < 0.4) {
+                            birdVelocity = 0;
+                            setTimeout(endTrial, 400);
+                            return;
+                        }
+                    } else {
+                        // Net fails to arrest velocity, stretching down into floor impact
+                        if (birdY >= FLOOR_Y - bird.radius) {
+                            birdY = FLOOR_Y - bird.radius;
+                            currentMeshStretch = FLOOR_Y - meshBaseY;
+                            endTrial();
+                            return;
+                        }
+                    }
+                }
+
+                drawCanvas(meshHeight, bird, birdY, currentMeshStretch);
+                animationId = requestAnimationFrame(animate);
+            }
+
+            function endTrial() {
+                cancelAnimationFrame(animationId);
+                currentTrialIndex++;
+                
+                if (currentTrialIndex < 3) {
+                    setTimeout(() => {
+                        executeSingleDropAnimation(meshHeight, bird);
+                    }, 600);
+                } else {
+                    finalizePipeline();
+                }
+            }
+
+            animate();
+        }
+
+        function finalizePipeline() {
+            isAnimating = false;
+            document.getElementById("runBtn").disabled = false;
+            document.getElementById("birdSelect").disabled = false;
+            document.getElementById("meshHeight").disabled = false;
+
+            let t1 = simulatedTrials[0];
+            let t2 = simulatedTrials[1];
+            let t3 = simulatedTrials[2];
+            let avg = Math.round(((t1 + t2 + t3) / 3) * 10) / 10;
+
+            document.getElementById("t1").innerText = t1 + " cm";
+            document.getElementById("t2").innerText = t2 + " cm";
+            document.getElementById("t3").innerText = t3 + " cm";
+            document.getElementById("tAvg").innerText = avg + " cm";
+
+            const statusDiv = document.getElementById("statusMessage");
+            if (avg === 0) {
+                statusDiv.innerText = "SUCCESS: Mesh height successfully preserved bird safety clearance window.";
+                statusDiv.className = "status success";
+            } else {
+                statusDiv.innerText = "CRITICAL MORTALITY: Insufficient deceleration height. Floor impact noted.";
+                statusDiv.className = "status fail";
+            }
+
+            document.getElementById("results").style.display = "block";
+            onSettingsChange();
+        }
+    </script>
+</body>
+</html>
